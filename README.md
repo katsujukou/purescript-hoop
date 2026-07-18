@@ -1,2 +1,3 @@
-# purescript-effect-system-experiment
-An experimental implementation of higher-order algebraic effect system in PureScript
+# purescript-hoop
+
+Hoop is an experimental implementation of **higher-order algebraic effect system** in PureScript

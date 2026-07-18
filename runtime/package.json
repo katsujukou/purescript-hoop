@@ -1,0 +1,19 @@
+{
+  "name": "runtime",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "bundle": "pnpm run typecheck && esbuild src/index.ts --bundle --format=esm --platform=neutral --outfile=../src/Hoop/Engine.js --banner:js='// Generated from runtime/src by esbuild -- do not edit. Rebuild with: pnpm -C runtime bundle'",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test",
+    "format": "biome format --write .",
+    "format:check": "biome format ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.4",
+    "@types/node": "^26.1.1",
+    "esbuild": "^0.28.1",
+    "typescript": "^7.0.2"
+  }
+}

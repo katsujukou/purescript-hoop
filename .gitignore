@@ -5,5 +5,12 @@ bower_components
 node_modules
 
 # Generated files
+src/Hoop/Engine.js
 .psci
+.purs-repl
+.psc-ide-port
+.spec-results
 output
+
+# Misc
+**/.DS_Store
