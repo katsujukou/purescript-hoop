@@ -1,7 +1,7 @@
 packages:
   - './runtime/**'
-# esbuild の postinstall は bin をネイティブバイナリに差し替える高速化だが、
-# pnpm の bin シム(node 経由で実行)と相性が悪いため無効のままにする。
-# JS ラッパー経由でもネイティブバイナリ(@esbuild/darwin-arm64 等)が使われる。
+# esbuild's postinstall is an optimization that swaps the bin for a native binary,
+# but it plays badly with pnpm's bin shims (which run via node), so keep it disabled.
+# The native binary (@esbuild/darwin-arm64 etc.) is still used via the JS wrapper.
 allowBuilds:
   esbuild: false

@@ -76,7 +76,7 @@ const runMachine = (
 
         case PERFORM: {
           const act = cur.args.act;
-          // スタックの頂上（最も内側のプロンプト）から、actのhandlerを持つ最初のPromptFフレームを探す
+          // Search from the top of the stack (innermost prompt) for the first PromptF frame with a handler for act
           let prompt: Proj<StackFrame, "PromptF"> | undefined;
           let i = stack.length - 1;
           for (; i >= 0; i -= 1) {
