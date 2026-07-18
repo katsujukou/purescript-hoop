@@ -1,0 +1,15 @@
+package:
+  name: hoop
+  dependencies:
+    - aff
+    - effect
+    - prelude
+  test:
+    main: Test.Hoop
+    dependencies:
+      - spec
+      - spec-node
+workspace:
+  packageSet:
+    registry: 77.13.1
+  extraPackages: {}

@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+
+# Cancel a superseded run when new commits land on the same ref.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            code:
+              - 'runtime/**'
+              - 'src/**'
+              - 'test/**'
+              - 'spago.yaml'
+              - 'spago.lock'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'flake.nix'
+              - 'flake.lock'
+              - '.github/workflows/ci.yaml'
+
+  ci:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      # Setup Nix environment: the toolchain (purs, spago, purs-tidy, node, pnpm, …)
+      # comes from flake.nix + flake.lock as the single source of truth.
+      - uses: actions/checkout@v5
+      - uses: cachix/install-nix-action@v30
+        with:
+          extra_nix_config: experimental-features = nix-command flakes
+      - uses: cachix/cachix-action@v17
+        with:
+          name: katsujukou-github
+          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
+      # Loads the `nix develop` environment into PATH for every `run:` step below.
+      - uses: nicknovitski/nix-develop@v1
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # `bundle` typechecks runtime/ and generates src/Hoop/Engine.js, which is
+      # gitignored but required by the FFI of src/Hoop/Engine.purs.
+      - name: Build
+        run: |
+          pnpm -F runtime run bundle
+          spago build
+
+      - name: Test
+        run: |
+          pnpm -F runtime run test
+          spago test
+
+      - name: Format check
+        run: |
+          pnpm -F runtime run format:check
+          purs-tidy check src test
+
+  # The single required status check. Always runs; green when `ci` passed OR was skipped
+  # (code untouched), red when `ci` (or the `changes` detection itself) failed or was
+  # cancelled. Point branch protection at THIS job (`ps-ci-gate`).
+  ps-ci-gate:
+    needs: [changes, ci]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Gate on the ci result
+        run: |
+          changes='${{ needs.changes.result }}'
+          result='${{ needs.ci.result }}'
+          if [ "$changes" != "success" ]; then
+            echo "::error::change detection did not pass (result: $changes)"
+            exit 1
+          fi
+          if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+            echo "::error::CI did not pass (result: $result)"
+            exit 1
+          fi
+          echo "CI gate green (ci result: $result)"
