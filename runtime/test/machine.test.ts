@@ -57,7 +57,7 @@ test("continuation after resume: k's result is the value already processed by th
   const result = run(
     Handle(
       (v: number) => Pure(v * 10),
-      { ask: (_p, k) => Bind(k(1), (r) => Pure((r as number) + 100)) },
+      { ask: (_p, k) => Bind(k(1), (r) => Pure(r + 100)) },
       act<number>("ask"),
     ),
   );
@@ -102,10 +102,10 @@ test("state effect (get/put)", () => {
 test("multi-shot continuation (calling k twice)", () => {
   const result = run(
     Handle(
-      id,
+      (v: number) => Pure([v]),
       {
         choice: (_p, k) =>
-          Bind(k(true), (a) => Bind(k(false), (b) => Pure([a, b]))),
+          Bind(k(true), (a) => Bind(k(false), (b) => Pure([...a, ...b]))),
       },
       Bind(act<boolean>("choice"), (x) => Pure(x ? 1 : 2)),
     ),
@@ -121,4 +121,22 @@ test("stack safety (200k binds)", () => {
 
 test("unhandled effect throws an error", () => {
   assert.throws(() => run(act("nope")), /Unhandled effect operation 'nope'/);
+});
+
+test("inherited object properties are not treated as handlers", () => {
+  for (const label of ["__proto__", "constructor", "toString"]) {
+    assert.throws(
+      () => run(Handle(id, {}, act(label))),
+      new RegExp(`Unhandled effect operation '${label}'`),
+    );
+  }
+});
+
+test("a handler named after an Object.prototype member still works", () => {
+  // Computed key: a plain `__proto__:` literal would set the prototype
+  // instead of defining an own property.
+  const result = run(
+    Handle(id, { ["__proto__"]: (_p, k) => k("handled") }, act("__proto__")),
+  );
+  assert.equal(result, "handled");
 });

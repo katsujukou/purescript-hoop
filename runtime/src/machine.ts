@@ -81,7 +81,9 @@ const runMachine = (
           let i = stack.length - 1;
           for (; i >= 0; i -= 1) {
             const f = stack[i]!;
-            if (isPromptF(f) && act.label in f.args.handlers) {
+            // Own properties only: `in` would also match prototype members
+            // like `toString` or `__proto__` and treat them as clauses.
+            if (isPromptF(f) && Object.hasOwn(f.args.handlers, act.label)) {
               prompt = f;
               break;
             }
@@ -89,7 +91,7 @@ const runMachine = (
           if (prompt === undefined)
             throw new Error(`hoop: Unhandled effect operation '${act.label}'`);
 
-          // non-null: the `in` check above guarantees the clause exists
+          // non-null: the `Object.hasOwn` check above guarantees the clause exists
           const clause = prompt.args.handlers[act.label]!;
           // // Tail-resumptive fast path (Koka's `fun` clauses): the clause
           // // resumes exactly once, immediately, and cannot observe or discard
@@ -130,7 +132,9 @@ const runMachine = (
 
 export const run = <A>(comp: Computation<A>): A => {
   let result: unknown;
-  runMachine(comp, (value) => {
+  // Handler answer types make `Computation` invariant in `A`, so erase it
+  // here — the machine boundary is the module's designated erasure point.
+  runMachine(comp as Computation<unknown>, (value) => {
     result = value;
   });
   // The machine is synchronous: onDone has run by now, and it received

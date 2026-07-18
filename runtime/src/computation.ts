@@ -6,12 +6,14 @@ export type Continuation<X = unknown, A = unknown> = (x: X) => Computation<A>;
 
 // A handler clause. It runs in the context *outside* the prompt; calling
 // `resume` reinstalls the captured continuation, prompt included
-// (deep-handler semantics).
-export type Clause = (
+// (deep-handler semantics). `B` is the answer type of the enclosing
+// Handle: both the clause's result and what `resume` yields (the rest of
+// the computation already passed through the return clause).
+export type Clause<B = unknown> = (
   payload: unknown[],
-  resume: (value: unknown) => Computation<unknown>,
-) => Computation<unknown>;
-export type Handlers = Record<string, Clause>;
+  resume: Continuation<unknown, B>,
+) => Computation<B>;
+export type Handlers<B = unknown> = Record<string, Clause<B>>;
 
 // `A` is the type of the value the computation produces. Type parameters
 // that only connect adjacent nodes (e.g. the intermediate type of Bind)
@@ -26,7 +28,7 @@ export type Computation<A> = Variant<
     Perform: { act: Action };
     Handle: {
       pure: (value: unknown) => Computation<A>;
-      handlers: Handlers;
+      handlers: Handlers<A>;
       comp: Computation<unknown>;
     };
     // Reinstall a captured stack segment, then continue with `value`.
@@ -50,15 +52,23 @@ export const Pure = <A>(value: A): Computation<A> => inj(PURE, { value });
 export const Bind = <X, A>(
   comp: Computation<X>,
   fn: (x: X) => Computation<A>,
-): Computation<A> => inj(BIND, { comp, fn: fn as Continuation<unknown, A> });
+): Computation<A> =>
+  inj(BIND, {
+    comp: comp as Computation<unknown>,
+    fn: fn as Continuation<unknown, A>,
+  });
 export const Perform = <A = unknown>(act: Action): Computation<A> =>
   inj(PERFORM, { act });
 export const Handle = <A, B>(
   pure: (value: A) => Computation<B>,
-  handlers: Handlers,
+  handlers: Handlers<B>,
   comp: Computation<A>,
 ): Computation<B> =>
-  inj(HANDLE, { pure: pure as Continuation<unknown, B>, handlers, comp });
+  inj(HANDLE, {
+    pure: pure as Continuation<unknown, B>,
+    handlers,
+    comp: comp as Computation<unknown>,
+  });
 export const Resumed = (
   frames: StackFrame[],
   value: unknown,
